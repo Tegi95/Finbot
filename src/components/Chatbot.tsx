@@ -5,6 +5,7 @@ import OrderConfirmation from './OrderConfirmation';
 import InfoBlock from './InfoBlock';
 import { PortfolioItem } from './Portfolio';
 import { Trade } from '../App';
+import { ChartAnnotation } from './StockChart';
 
 const GEMINI_API_KEY = "AIzaSyC7PsWTuHu8Z4sNgNGICN5BtgUAsTtL1GI";
 const FINNHUB_API_KEY = "d129d1hr01qmhi3h8i2gd129d1hr01qmhi3h8i30";
@@ -50,6 +51,24 @@ Aktionsformate:
 [(SectorTrends)]
 [(TopMovers)]
 [(CreateWatchlist:WatchlistName;TICKER1,TICKER2,TICKER3)]
+
+**CHART-ANALYSE UND MARKIERUNGEN:**
+Du kannst Charts analysieren und technische Markierungen hinzufügen:
+[(AddTrendLine:TICKER;StartDatum;StartPreis;EndDatum;EndPreis)] - Trendlinie zeichnen
+[(AddSupportLevel:TICKER;Preis)] - Support-Level markieren  
+[(AddResistanceLevel:TICKER;Preis)] - Resistance-Level markieren
+[(AddFibonacci:TICKER;LowPreis;HighPreis)] - Fibonacci-Retracements einzeichnen
+[(AddTextMarker:TICKER;Datum;Preis;Text)] - Textmarkierung hinzufügen
+[(HighlightPattern:TICKER;PatternName;StartDatum;EndDatum)] - Chart-Pattern hervorheben
+
+PATTERN-ERKENNUNG:
+Erkenne und markiere automatisch:
+- Head and Shoulders, Double Top/Bottom
+- Triangles (Ascending/Descending/Symmetrical)  
+- Flags and Pennants, Cup and Handle
+- Breakouts und Support/Resistance-Brüche
+
+Wenn du Chart-Analyse durchführst, verwende diese Aktionsformate um relevante Levels einzuzeichnen.
 
 Du erhältst unten eine Zusammenfassung des aktuellen Kontos und des Portfolios des Nutzers. Nutze diese Informationen, um personalisierte und kontextbezogene Antworten zu geben.
 
@@ -128,6 +147,8 @@ interface ChatbotProps {
   portfolio: PortfolioItem[];
   tradeHistory: Trade[];
   handleCreateWatchlistWithStocks: (name: string, stocks: string[]) => boolean;
+  onAddAnnotation?: (annotation: ChartAnnotation) => void;
+  selectedStock?: string;
 }
 
 const fetchStockPriceNumber = async (ticker: string): Promise<number | null> => {
@@ -340,6 +361,154 @@ const processCreateWatchlistTag = (text: string, handleCreate: (name: string, st
     return processedText;
 };
 
+// Chart Annotation Processing Functions
+const processChartAnnotationTags = (
+    text: string,
+    selectedStock: string,
+    onAddAnnotation?: (annotation: ChartAnnotation) => void
+): string => {
+    if (!onAddAnnotation) return text;
+    
+    let processedText = text;
+    
+    // Process AddTrendLine tags
+    const trendlineRegex = /\[\(AddTrendLine:(.*?);(.*?);(.*?);(.*?);(.*?)\)\]/g;
+    const trendlineMatches = Array.from(text.matchAll(trendlineRegex));
+    
+    for (const match of trendlineMatches) {
+        const [fullTag, ticker, startDate, startPrice, endDate, endPrice] = match;
+        
+        if (ticker.toUpperCase() === selectedStock.toUpperCase()) {
+            const annotation: ChartAnnotation = {
+                id: `trendline-${Date.now()}-${Math.random()}`,
+                type: 'trendline',
+                data: {
+                    startTime: (new Date(startDate).getTime() / 1000) as any,
+                    endTime: (new Date(endDate).getTime() / 1000) as any,
+                    startPrice: parseFloat(startPrice),
+                    endPrice: parseFloat(endPrice),
+                    color: '#ff6b6b'
+                },
+                createdBy: 'bot'
+            };
+            
+            onAddAnnotation(annotation);
+            processedText = processedText.replace(fullTag, `📈 Trendlinie zu ${ticker} hinzugefügt (${startPrice}$ → ${endPrice}$)`);
+        }
+    }
+    
+    // Process AddSupportLevel tags
+    const supportRegex = /\[\(AddSupportLevel:(.*?);(.*?)\)\]/g;
+    const supportMatches = Array.from(text.matchAll(supportRegex));
+    
+    for (const match of supportMatches) {
+        const [fullTag, ticker, price] = match;
+        
+        if (ticker.toUpperCase() === selectedStock.toUpperCase()) {
+            const annotation: ChartAnnotation = {
+                id: `support-${Date.now()}-${Math.random()}`,
+                type: 'horizontal',
+                data: {
+                    price: parseFloat(price),
+                    color: '#4ecdc4',
+                    text: `Support: $${price}`
+                },
+                createdBy: 'bot'
+            };
+            
+            onAddAnnotation(annotation);
+            processedText = processedText.replace(fullTag, `🟢 Support-Level bei $${price} markiert`);
+        }
+    }
+    
+    // Process AddResistanceLevel tags
+    const resistanceRegex = /\[\(AddResistanceLevel:(.*?);(.*?)\)\]/g;
+    const resistanceMatches = Array.from(text.matchAll(resistanceRegex));
+    
+    for (const match of resistanceMatches) {
+        const [fullTag, ticker, price] = match;
+        
+        if (ticker.toUpperCase() === selectedStock.toUpperCase()) {
+            const annotation: ChartAnnotation = {
+                id: `resistance-${Date.now()}-${Math.random()}`,
+                type: 'horizontal',
+                data: {
+                    price: parseFloat(price),
+                    color: '#ff6b6b',
+                    text: `Resistance: $${price}`
+                },
+                createdBy: 'bot'
+            };
+            
+            onAddAnnotation(annotation);
+            processedText = processedText.replace(fullTag, `🔴 Resistance-Level bei $${price} markiert`);
+        }
+    }
+    
+    // Process AddFibonacci tags
+    const fibonacciRegex = /\[\(AddFibonacci:(.*?);(.*?);(.*?)\)\]/g;
+    const fibonacciMatches = Array.from(text.matchAll(fibonacciRegex));
+    
+    for (const match of fibonacciMatches) {
+        const [fullTag, ticker, lowPrice, highPrice] = match;
+        
+        if (ticker.toUpperCase() === selectedStock.toUpperCase()) {
+            const low = parseFloat(lowPrice);
+            const high = parseFloat(highPrice);
+            const range = high - low;
+            
+            const fibLevels = [
+                { level: 0, price: high },
+                { level: 23.6, price: high - (range * 0.236) },
+                { level: 38.2, price: high - (range * 0.382) },
+                { level: 50, price: high - (range * 0.5) },
+                { level: 61.8, price: high - (range * 0.618) },
+                { level: 100, price: low }
+            ];
+            
+            const annotation: ChartAnnotation = {
+                id: `fibonacci-${Date.now()}-${Math.random()}`,
+                type: 'fibonacci',
+                data: {
+                    fibLevels,
+                    color: '#9b59b6'
+                },
+                createdBy: 'bot'
+            };
+            
+            onAddAnnotation(annotation);
+            processedText = processedText.replace(fullTag, `📊 Fibonacci-Retracements hinzugefügt (${lowPrice}$ - ${highPrice}$)`);
+        }
+    }
+    
+    // Process AddTextMarker tags
+    const textMarkerRegex = /\[\(AddTextMarker:(.*?);(.*?);(.*?);(.*?)\)\]/g;
+    const textMarkerMatches = Array.from(text.matchAll(textMarkerRegex));
+    
+    for (const match of textMarkerMatches) {
+        const [fullTag, ticker, date, price, text] = match;
+        
+        if (ticker.toUpperCase() === selectedStock.toUpperCase()) {
+            const annotation: ChartAnnotation = {
+                id: `text-${Date.now()}-${Math.random()}`,
+                type: 'text',
+                data: {
+                    startTime: (new Date(date).getTime() / 1000) as any,
+                    startPrice: parseFloat(price),
+                    text: text,
+                    color: '#2196F3'
+                },
+                createdBy: 'bot'
+            };
+            
+            onAddAnnotation(annotation);
+            processedText = processedText.replace(fullTag, `📝 Textmarkierung "${text}" hinzugefügt`);
+        }
+    }
+    
+    return processedText;
+};
+
 const processBuyStockTags = async (text: string, handleBuy: (ticker: string, quantity: number, price: number) => boolean): Promise<{ text: string, orders: Array<Message['order']> }> => {
     const regex = /\[\(BuyStock:(.*?);(.*?)(?:;(.*?))?\)\]/g;
     let processedText = text;
@@ -445,7 +614,7 @@ const parseMessage = (text: string) => {
   return parts;
 };
 
-const Chatbot: React.FC<ChatbotProps> = ({ setSelectedStock, handleBuy, handleSell, account, portfolio, tradeHistory, handleCreateWatchlistWithStocks }) => {
+const Chatbot: React.FC<ChatbotProps> = ({ setSelectedStock, handleBuy, handleSell, account, portfolio, tradeHistory, handleCreateWatchlistWithStocks, onAddAnnotation, selectedStock }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageId, setMessageId] = useState(0);
   const [input, setInput] = useState('');
@@ -506,6 +675,11 @@ const Chatbot: React.FC<ChatbotProps> = ({ setSelectedStock, handleBuy, handleSe
       processedText = textAfterSingleMetric;
       
       processedText = processCreateWatchlistTag(processedText, handleCreateWatchlistWithStocks);
+
+      // Process chart annotations
+      if (selectedStock && onAddAnnotation) {
+        processedText = processChartAnnotationTags(processedText, selectedStock, onAddAnnotation);
+      }
 
       const { text: textAfterBuy, orders: buyOrders } = await processBuyStockTags(processedText, handleBuy);
       const { text: textAfterSell, orders: sellOrders } = await processSellStockTags(textAfterBuy, handleSell);

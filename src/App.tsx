@@ -7,6 +7,7 @@ import Chatbot from './components/Chatbot';
 import Portfolio, { PortfolioItem } from './components/Portfolio';
 import AccountBalance from './components/AccountBalance';
 import Settings, { AppSettings } from './components/Settings';
+import { ChartAnnotation } from './components/StockChart';
 import { FaCog } from 'react-icons/fa';
 
 export interface Trade {
@@ -55,6 +56,9 @@ function App() {
     language: 'de'
   });
 
+  // Chart Annotations State
+  const [chartAnnotations, setChartAnnotations] = useState<ChartAnnotation[]>([]);
+
   // Load settings from localStorage on mount
   useEffect(() => {
     const savedSettings = localStorage.getItem('finbot-settings');
@@ -85,6 +89,21 @@ function App() {
         return true;
     }
     return false;
+  };
+
+  // Chart Annotation Functions
+  const handleAddAnnotation = (annotation: ChartAnnotation) => {
+    setChartAnnotations(prev => [...prev, annotation]);
+  };
+
+  const handleRemoveAnnotation = (annotationId: string) => {
+    setChartAnnotations(prev => prev.filter(ann => ann.id !== annotationId));
+  };
+
+  // Clear annotations when stock changes
+  const handleStockChange = (stock: string) => {
+    setSelectedStock(stock);
+    setChartAnnotations([]); // Clear annotations for new stock
   };
 
   const handleBuy = (ticker: string, quantity: number, price: number): boolean => {
@@ -170,7 +189,7 @@ function App() {
       <div className="top-bar">
         <h1>Finbot</h1>
         <div className="top-bar-right">
-          <SearchBar onSearch={setSelectedStock} />
+          <SearchBar onSearch={handleStockChange} />
           <AccountBalance balance={account.balance} buyingPower={account.buyingPower} dailyPandL={account.dailyPandL} />
           <div className="settings-icon" onClick={() => setIsSettingsOpen(true)}>
             <SettingsIcon />
@@ -185,7 +204,7 @@ function App() {
             setActiveWatchlist={setActiveWatchlist}
             addWatchlist={addWatchlist}
             stocks={watchlists[activeWatchlist]}
-            setSelectedStock={setSelectedStock}
+            setSelectedStock={handleStockChange}
             selectedStock={selectedStock}
             removeFromWatchlist={removeFromWatchlist}
             addToWatchlist={addToWatchlist}
@@ -193,21 +212,28 @@ function App() {
         </div>
         <div className="main-content">
           <div className="card stock-chart">
-            <StockChart selectedStock={selectedStock} />
+            <StockChart 
+              selectedStock={selectedStock} 
+              annotations={chartAnnotations}
+              onAnnotationAdd={handleAddAnnotation}
+              onAnnotationRemove={handleRemoveAnnotation}
+            />
           </div>
           <div className="card positions">
              <Portfolio positions={portfolio} />
           </div>
         </div>
-        <div className="card chatbot">
+                <div className="card chatbot">
           <Chatbot 
-            setSelectedStock={setSelectedStock} 
-            handleBuy={handleBuy} 
+            setSelectedStock={handleStockChange}
+            handleBuy={handleBuy}
             handleSell={handleSell}
             account={account}
             portfolio={portfolio}
             tradeHistory={tradeHistory}
             handleCreateWatchlistWithStocks={handleCreateWatchlistWithStocks}
+            onAddAnnotation={handleAddAnnotation}
+            selectedStock={selectedStock}
           />
         </div>
       </div>

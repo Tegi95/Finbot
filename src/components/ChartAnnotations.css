@@ -1,0 +1,230 @@
+/* Chart Annotations Styling */
+
+.chart-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.annotation-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.annotation-toggle {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  margin: 2px;
+  transition: background-color 0.2s;
+}
+
+.annotation-toggle:hover {
+  background: #1d4ed8;
+}
+
+.annotation-toggle.active {
+  background: #16a34a;
+}
+
+.annotation-legend {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-size: 12px;
+  max-width: 250px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin: 3px 0;
+}
+
+.legend-color {
+  width: 16px;
+  height: 2px;
+  margin-right: 8px;
+  border-radius: 1px;
+}
+
+.legend-text {
+  color: #374151;
+  font-weight: 500;
+}
+
+/* Bot annotation indicators */
+.bot-annotation-badge {
+  position: absolute;
+  top: 50px;
+  right: 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  animation: fadeInSlide 0.5s ease-out;
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Chart annotation tooltips */
+.annotation-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 1000;
+  white-space: nowrap;
+}
+
+/* Annotation summary panel */
+.annotation-summary {
+  position: absolute;
+  top: 80px;
+  right: 10px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  max-width: 220px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-size: 13px;
+}
+
+.annotation-summary h4 {
+  margin: 0 0 8px 0;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.annotation-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.annotation-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.annotation-item:last-child {
+  border-bottom: none;
+}
+
+.annotation-label {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.annotation-value {
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.remove-annotation {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px;
+  border-radius: 2px;
+  transition: background-color 0.2s;
+}
+
+.remove-annotation:hover {
+  background: #fef2f2;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .annotation-controls,
+  .annotation-legend,
+  .annotation-summary {
+    position: static;
+    margin: 8px 0;
+    width: 100%;
+    max-width: none;
+  }
+  
+  .bot-annotation-badge {
+    position: static;
+    display: inline-block;
+    margin: 8px 0;
+  }
+}
+
+/* Dark theme support */
+[data-theme="dark"] .annotation-controls,
+[data-theme="dark"] .annotation-legend,
+[data-theme="dark"] .annotation-summary {
+  background: rgba(31, 41, 55, 0.95);
+  border-color: #374151;
+}
+
+[data-theme="dark"] .legend-text,
+[data-theme="dark"] .annotation-value {
+  color: #e5e7eb;
+}
+
+[data-theme="dark"] .annotation-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .annotation-item {
+  border-bottom-color: #374151;
+}
+
+/* Animation for new annotations */
+.annotation-added {
+  animation: annotationPulse 1s ease-out;
+}
+
+@keyframes annotationPulse {
+  0% { opacity: 0; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Color coding for different annotation types */
+.annotation-trendline { color: #ff6b6b; }
+.annotation-support { color: #4ecdc4; }
+.annotation-resistance { color: #ff6b6b; }
+.annotation-fibonacci { color: #9b59b6; }
+.annotation-text { color: #2196F3; }
+.annotation-pattern { color: #ff9800; } 

@@ -1,9 +1,30 @@
 import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
-import { createChart, IChartApi, ISeriesApi, UTCTimestamp, LineSeries, CandlestickSeries } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, UTCTimestamp, LineSeries, CandlestickSeries, LineStyle, LineType } from 'lightweight-charts';
 import StockQuote from './StockQuote';
+import './ChartAnnotations.css';
+
+export interface ChartAnnotation {
+  id: string;
+  type: 'trendline' | 'horizontal' | 'vertical' | 'rectangle' | 'text' | 'pattern' | 'fibonacci';
+  data: {
+    startTime?: UTCTimestamp;
+    endTime?: UTCTimestamp;
+    startPrice?: number;
+    endPrice?: number;
+    price?: number;
+    text?: string;
+    color?: string;
+    pattern?: string;
+    fibLevels?: Array<{level: number, price: number}>;
+  };
+  createdBy?: 'bot' | 'user';
+}
 
 interface StockChartProps {
   selectedStock: string;
+  annotations?: ChartAnnotation[];
+  onAnnotationAdd?: (annotation: ChartAnnotation) => void;
+  onAnnotationRemove?: (annotationId: string) => void;
 }
 
 // Funktion zum Generieren realistischer Mock-Daten für Linie
@@ -68,11 +89,12 @@ const generateMockCandleData = (symbol: string, days: number): Array<{time: UTCT
   return data;
 };
 
-const StockChart: React.FC<StockChartProps> = ({ selectedStock }) => {
+const StockChart: React.FC<StockChartProps> = ({ selectedStock, annotations = [], onAnnotationAdd, onAnnotationRemove }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const lineSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const annotationSeriesRef = useRef<Map<string, ISeriesApi<any>>>(new Map());
   const [timeframe, setTimeframe] = useState('1Y');
   const [chartType, setChartType] = useState<'line' | 'candle'>('line');
   const [isLoading, setIsLoading] = useState(false);
@@ -299,6 +321,149 @@ const StockChart: React.FC<StockChartProps> = ({ selectedStock }) => {
 
     fetchChartData();
   }, [selectedStock, timeframe, timeframes]);
+
+  // Annotation-Funktionen
+  const addTrendLine = (annotation: ChartAnnotation) => {
+    if (!chartRef.current || !annotation.data.startTime || !annotation.data.endTime) return;
+    
+    const lineSeries = chartRef.current.addLineSeries({
+      color: annotation.data.color || '#ff6b6b',
+      lineWidth: 2,
+      lineStyle: LineStyle.Dashed,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    });
+    
+    lineSeries.setData([
+      { time: annotation.data.startTime, value: annotation.data.startPrice || 0 },
+      { time: annotation.data.endTime, value: annotation.data.endPrice || 0 }
+    ]);
+    
+    annotationSeriesRef.current.set(annotation.id, lineSeries);
+  };
+
+  const addHorizontalLine = (annotation: ChartAnnotation) => {
+    if (!chartRef.current || !annotation.data.price) return;
+    
+    const timeScale = chartRef.current.timeScale();
+    const visibleRange = timeScale.getVisibleRange();
+    
+    const lineSeries = chartRef.current.addLineSeries({
+      color: annotation.data.color || (annotation.type === 'horizontal' ? '#4ecdc4' : '#ff9800'),
+      lineWidth: 1,
+      lineStyle: LineStyle.Dotted,
+      priceLineVisible: true,
+      lastValueVisible: false,
+    });
+    
+    const startTime = visibleRange?.from || (Date.now() / 1000 - 365 * 24 * 60 * 60);
+    const endTime = visibleRange?.to || (Date.now() / 1000);
+    
+    lineSeries.setData([
+      { time: startTime as UTCTimestamp, value: annotation.data.price },
+      { time: endTime as UTCTimestamp, value: annotation.data.price }
+    ]);
+    
+    annotationSeriesRef.current.set(annotation.id, lineSeries);
+  };
+
+  const addFibonacciLevels = (annotation: ChartAnnotation) => {
+    if (!chartRef.current || !annotation.data.fibLevels) return;
+    
+    annotation.data.fibLevels.forEach((level, index) => {
+      const color = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f39c12', '#9b59b6'][index % 5];
+      const lineSeries = chartRef.current!.addLineSeries({
+        color,
+        lineWidth: 1,
+        lineStyle: LineStyle.Dotted,
+        priceLineVisible: true,
+        lastValueVisible: false,
+      });
+      
+      const timeScale = chartRef.current!.timeScale();
+      const visibleRange = timeScale.getVisibleRange();
+      const startTime = visibleRange?.from || (Date.now() / 1000 - 365 * 24 * 60 * 60);
+      const endTime = visibleRange?.to || (Date.now() / 1000);
+      
+      lineSeries.setData([
+        { time: startTime as UTCTimestamp, value: level.price },
+        { time: endTime as UTCTimestamp, value: level.price }
+      ]);
+      
+      annotationSeriesRef.current.set(`${annotation.id}-fib-${index}`, lineSeries);
+    });
+  };
+
+  const addTextMarker = (annotation: ChartAnnotation) => {
+    if (!annotation.data.startTime || !annotation.data.startPrice || !annotation.data.text) return;
+    
+    const activeSeries = chartType === 'line' ? lineSeriesRef.current : candleSeriesRef.current;
+    if (!activeSeries) return;
+    
+    const existingMarkers = activeSeries.markers?.() || [];
+    const newMarker = {
+      time: annotation.data.startTime,
+      position: 'aboveBar' as const,
+      color: annotation.data.color || '#2196F3',
+      shape: 'arrowDown' as const,
+      text: annotation.data.text,
+      size: 1 as const,
+    };
+    
+    activeSeries.setMarkers([...existingMarkers, newMarker]);
+  };
+
+  const removeAnnotation = (annotationId: string) => {
+    const series = annotationSeriesRef.current.get(annotationId);
+    if (series && chartRef.current) {
+      chartRef.current.removeSeries(series);
+      annotationSeriesRef.current.delete(annotationId);
+    }
+    
+    // Remove fibonacci sub-annotations
+    Array.from(annotationSeriesRef.current.keys())
+      .filter(key => key.startsWith(`${annotationId}-fib-`))
+      .forEach(key => {
+        const fibSeries = annotationSeriesRef.current.get(key);
+        if (fibSeries && chartRef.current) {
+          chartRef.current.removeSeries(fibSeries);
+          annotationSeriesRef.current.delete(key);
+        }
+      });
+  };
+
+  // Apply annotations effect
+  useEffect(() => {
+    if (!chartRef.current) return;
+    
+    // Clear existing annotations
+    annotationSeriesRef.current.forEach((series, id) => {
+      if (chartRef.current) {
+        chartRef.current.removeSeries(series);
+      }
+    });
+    annotationSeriesRef.current.clear();
+    
+    // Add new annotations
+    annotations.forEach(annotation => {
+      switch (annotation.type) {
+        case 'trendline':
+          addTrendLine(annotation);
+          break;
+        case 'horizontal':
+          addHorizontalLine(annotation);
+          break;
+        case 'fibonacci':
+          addFibonacciLevels(annotation);
+          break;
+        case 'text':
+          addTextMarker(annotation);
+          break;
+        default:
+          break;
+      }
+    });
+  }, [annotations, chartRef.current]);
 
   return (
     <div className="stock-chart-container">
